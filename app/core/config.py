@@ -15,7 +15,7 @@ class Settings:
     reset_token_ttl_minutes: int = int(os.getenv("RESET_TOKEN_TTL_MINUTES", "30"))
     async_job_delay_seconds: int = int(os.getenv("ASYNC_JOB_DELAY_SECONDS", "1"))
     deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK", ""))
-    deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
     deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
     deepseek_timeout_seconds: int = int(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "30"))
 

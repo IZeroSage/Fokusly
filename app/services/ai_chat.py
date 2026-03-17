@@ -22,6 +22,8 @@ def _extract_json_object(text: str) -> str:
         lines = payload.splitlines()
         if len(lines) >= 3:
             payload = "\n".join(lines[1:-1]).strip()
+    if payload.startswith("json"):
+        payload = payload[len("json") :].strip()
     start = payload.find("{")
     if start == -1:
         raise ValueError("No JSON object start")
@@ -37,10 +39,67 @@ def _extract_json_object(text: str) -> str:
     raise ValueError("No balanced JSON object found")
 
 
-class DeepSeekOperation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+def _normalize_operations(raw_operations: object) -> list[dict]:
+    if not isinstance(raw_operations, list):
+        return []
+    normalized: list[dict] = []
+    for item in raw_operations:
+        if not isinstance(item, dict):
+            continue
+        op = str(item.get("op") or item.get("type") or item.get("action") or "").strip()
+        normalized.append(
+            {
+                "op": op,
+                "task_id": item.get("task_id") or item.get("id"),
+                "title": item.get("title"),
+                "mini_description": item.get("mini_description") or item.get("description"),
+                "duration_minutes": item.get("duration_minutes"),
+                "date": item.get("date"),
+                "time": item.get("time"),
+                "category": item.get("category"),
+            }
+        )
+    return normalized
 
-    op: str
+
+def _normalize_command_payload(raw: object, raw_content: str) -> dict:
+    if not isinstance(raw, dict):
+        return {
+            "summary": "Не удалось надежно распознать ответ AI.",
+            "operations": [],
+            "need_clarification": True,
+            "clarification_question": "Уточни, пожалуйста, что именно нужно сделать с задачей.",
+        }
+
+    summary = raw.get("summary") or raw.get("explanation") or raw.get("message") or ""
+    need_clarification = bool(raw.get("need_clarification", False))
+    clarification = raw.get("clarification_question") or raw.get("question")
+    operations = _normalize_operations(raw.get("operations") or raw.get("actions") or [])
+
+    if not isinstance(summary, str):
+        summary = str(summary)
+    if clarification is not None and not isinstance(clarification, str):
+        clarification = str(clarification)
+
+    if not operations and not need_clarification:
+        need_clarification = True
+        if not clarification:
+            clarification = "Уточни, пожалуйста, какую именно задачу создать, обновить или удалить."
+        if not summary:
+            summary = raw_content.strip()[:400]
+
+    return {
+        "summary": summary,
+        "operations": operations,
+        "need_clarification": need_clarification,
+        "clarification_question": clarification,
+    }
+
+
+class DeepSeekOperation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    op: str = ""
     task_id: str | None = None
     title: str | None = None
     mini_description: str | None = None
@@ -51,11 +110,11 @@ class DeepSeekOperation(BaseModel):
 
 
 class DeepSeekCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
-    summary: str
-    operations: list[DeepSeekOperation]
-    need_clarification: bool
+    summary: str = ""
+    operations: list[DeepSeekOperation] = Field(default_factory=list)
+    need_clarification: bool = False
     clarification_question: str | None = None
 
 
@@ -129,7 +188,8 @@ def _deepseek_request(messages: list[dict[str, str]]) -> DeepSeekCommand:
     payload = {
         "model": settings.deepseek_model,
         "messages": messages,
-        "temperature": 0,
+        "temperature": 0.3,
+        "max_tokens": 3000,
         "response_format": {"type": "json_object"},
     }
     req = request.Request(
@@ -154,12 +214,13 @@ def _deepseek_request(messages: list[dict[str, str]]) -> DeepSeekCommand:
     try:
         parsed = json.loads(body)
         content = _extract_deepseek_content(parsed)
-        command_payload = json.loads(_extract_json_object(content))
-        command = DeepSeekCommand.model_validate(command_payload)
+        try:
+            command_payload = json.loads(_extract_json_object(content))
+        except ValueError:
+            command_payload = {}
+        normalized_payload = _normalize_command_payload(command_payload, content)
+        command = DeepSeekCommand.model_validate(normalized_payload)
     except (json.JSONDecodeError, ValidationError, AppError) as exc:
-        ai_metrics.mark_failed()
-        raise AppError(status_code=502, code="BAD_GATEWAY", message="Could not parse AI response") from exc
-    except ValueError as exc:
         ai_metrics.mark_failed()
         raise AppError(status_code=502, code="BAD_GATEWAY", message="Could not parse AI response") from exc
 
