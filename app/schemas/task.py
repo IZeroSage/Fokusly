@@ -56,6 +56,15 @@ class DayScheduleResponse(BaseModel):
     items: list[ScheduleDayItem]
 
 
+class WeekDayResponse(BaseModel):
+    date: str
+    tasks_count: int
+
+
+class WeekScheduleResponse(BaseModel):
+    days: list[WeekDayResponse]
+
+
 class MonthDayResponse(BaseModel):
     day: int
     tasks_count: int
