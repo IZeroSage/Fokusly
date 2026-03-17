@@ -49,6 +49,7 @@ def serialize_note(note: Note) -> dict[str, Any]:
         "body": note.body,
         "category": note.category,
         "created_at": to_iso_utc(note.created_at),
+        "updated_at": to_iso_utc(note.updated_at) if note.updated_at else None,
     }
 
 

@@ -9,6 +9,7 @@ class NoteResponse(BaseModel):
     body: str
     category: str
     created_at: str
+    updated_at: str | None
 
 
 class NotesListResponse(BaseModel):

@@ -48,6 +48,13 @@ def create_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
+    if payload.start_at.tzinfo is None or payload.start_at.utcoffset() is None:
+        raise AppError(
+            status_code=422,
+            code="VALIDATION_ERROR",
+            message="start_at must include timezone offset",
+            details={"field": "start_at"},
+        )
     if payload.source_note_id:
         note = db.get(Note, payload.source_note_id)
         if note is None or note.user_id != current_user.id:
@@ -114,6 +121,13 @@ def patch_task(
     if "duration_minutes" in updates and updates["duration_minutes"] is not None:
         task.duration_minutes = updates["duration_minutes"]
     if "start_at" in updates and updates["start_at"] is not None:
+        if updates["start_at"].tzinfo is None or updates["start_at"].utcoffset() is None:
+            raise AppError(
+                status_code=422,
+                code="VALIDATION_ERROR",
+                message="start_at must include timezone offset",
+                details={"field": "start_at"},
+            )
         task.start_at = ensure_utc(updates["start_at"])
     if "category" in updates and updates["category"] is not None:
         task.category = updates["category"].strip()
