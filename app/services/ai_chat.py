@@ -16,6 +16,27 @@ from app.core.security import ensure_utc, now_utc
 from app.models.task import Task
 
 
+def _extract_json_object(text: str) -> str:
+    payload = text.strip()
+    if payload.startswith("```"):
+        lines = payload.splitlines()
+        if len(lines) >= 3:
+            payload = "\n".join(lines[1:-1]).strip()
+    start = payload.find("{")
+    if start == -1:
+        raise ValueError("No JSON object start")
+    depth = 0
+    for idx in range(start, len(payload)):
+        char = payload[idx]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return payload[start : idx + 1]
+    raise ValueError("No balanced JSON object found")
+
+
 class DeepSeekOperation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -105,7 +126,12 @@ def _deepseek_request(messages: list[dict[str, str]]) -> DeepSeekCommand:
         raise AppError(status_code=503, code="SERVICE_UNAVAILABLE", message="AI service temporary unavailable")
 
     url = f"{settings.deepseek_base_url.rstrip('/')}/chat/completions"
-    payload = {"model": settings.deepseek_model, "messages": messages, "temperature": 0}
+    payload = {
+        "model": settings.deepseek_model,
+        "messages": messages,
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+    }
     req = request.Request(
         url=url,
         data=json.dumps(payload).encode("utf-8"),
@@ -128,9 +154,12 @@ def _deepseek_request(messages: list[dict[str, str]]) -> DeepSeekCommand:
     try:
         parsed = json.loads(body)
         content = _extract_deepseek_content(parsed)
-        command_payload = json.loads(content)
+        command_payload = json.loads(_extract_json_object(content))
         command = DeepSeekCommand.model_validate(command_payload)
     except (json.JSONDecodeError, ValidationError, AppError) as exc:
+        ai_metrics.mark_failed()
+        raise AppError(status_code=502, code="BAD_GATEWAY", message="Could not parse AI response") from exc
+    except ValueError as exc:
         ai_metrics.mark_failed()
         raise AppError(status_code=502, code="BAD_GATEWAY", message="Could not parse AI response") from exc
 
