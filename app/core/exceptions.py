@@ -26,7 +26,6 @@ class AppError(Exception):
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_, exc: AppError) -> JSONResponse:
-        # iOS client expects FastAPI-like `detail` payloads.
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
     @app.exception_handler(RequestValidationError)

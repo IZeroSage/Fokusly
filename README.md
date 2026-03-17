@@ -1,60 +1,58 @@
-# Fokusly Backend (FastAPI)
+# Fokusly Backend
 
-Backend for the Fokusly iOS app based on `FastAPI_TZ.md`.
+Бэкенд для приложения Fokusly на FastAPI.
 
-## Run locally
+## Из чего состоит
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+- API версии `v1` с префиксом `/api/v1`
+- JWT-аутентификация (`Bearer <access_token>`)
+- SQLAlchemy + SQLite локально
+- PostgreSQL при запуске через Docker Compose
 
-## Run with Docker (backend + PostgreSQL)
+Документация:
+- `http://127.0.0.1:8000/docs`
+- `http://127.0.0.1:8000/openapi.json`
+
+## Запуск в Docker
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
 ```
 
-Backend:
-- `http://127.0.0.1:8000`
-- Docs: `http://127.0.0.1:8000/docs`
-
-Stop and remove containers:
+Остановка:
 
 ```bash
 docker compose down
 ```
 
-Stop and remove containers + DB volume:
+Остановка с удалением volume базы:
 
 ```bash
 docker compose down -v
 ```
 
-## API docs
+## Структура проекта
 
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- OpenAPI JSON: `http://127.0.0.1:8000/openapi.json`
-
-## Architecture
-
-```
+```text
 app/
-  api/v1/endpoints/   # routers grouped by domain
-  core/               # config, errors, security
-  db/                 # SQLAlchemy engine/session/base
-  models/             # ORM entities
-  schemas/            # request/response DTO
-  services/           # shared helpers/serializers
-  main.py             # app factory + startup
+  api/v1/endpoints/
+  core/
+  db/
+  models/
+  schemas/
+  services/
+  main.py
 ```
 
-## Notes
+## Переменные окружения
 
-- Base path: `/api/v1`
-- Auth: Bearer token (`Authorization: Bearer <access_token>`)
-- Default local DB: SQLite file `fokusly.db` (`DATABASE_URL` can override).
-- In Docker, DB is PostgreSQL (`db` service) and persists in `postgres_data` volume.
+- `DATABASE_URL` — строка подключения к БД
+- `FOKUSLY_SECRET_KEY` — ключ подписи токенов
+- `ACCESS_TOKEN_TTL_MINUTES` — TTL access token
+- `REFRESH_TOKEN_TTL_DAYS` — TTL refresh token
+
+Для Docker Compose используются:
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
