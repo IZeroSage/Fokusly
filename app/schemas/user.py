@@ -33,6 +33,7 @@ class UserSettingsPayload(BaseModel):
     theme: Literal["light", "dark"]
     smart_planning: bool
     ai_suggestions: bool
+    timezone: str = "Europe/Moscow"
 
 
 class SubscriptionResponse(BaseModel):

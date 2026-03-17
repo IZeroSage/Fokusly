@@ -84,6 +84,7 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> dict:
             theme="light",
             smart_planning=True,
             ai_suggestions=True,
+            timezone="Europe/Moscow",
         )
     )
     access_token, refresh_token = issue_token_pair(db, user.id)

@@ -1,4 +1,5 @@
 from app.models.ai_message import AIMessage
+from app.models.ai_request import AIRequestLog
 from app.models.jobs import ExportJob, ImportJob
 from app.models.note import Note
 from app.models.task import Task
@@ -12,6 +13,7 @@ __all__ = [
     "Note",
     "Task",
     "AIMessage",
+    "AIRequestLog",
     "ExportJob",
     "ImportJob",
 ]

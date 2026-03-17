@@ -33,6 +33,7 @@ class UserSettings(Base):
     theme: Mapped[str] = mapped_column(String(16), default="light")
     smart_planning: Mapped[bool] = mapped_column(Boolean, default=True)
     ai_suggestions: Mapped[bool] = mapped_column(Boolean, default=True)
+    timezone: Mapped[str] = mapped_column(String(64), default="Europe/Moscow")
 
     user: Mapped[User] = relationship("User", back_populates="settings")
 

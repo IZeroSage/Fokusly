@@ -16,8 +16,15 @@ class AIHistoryResponse(BaseModel):
 
 class SendAIMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+    request_id: str | None = Field(default=None, max_length=128)
+
+
+class AIActionItem(BaseModel):
+    type: str
+    task_id: str | None = None
 
 
 class SendAIMessageResponse(BaseModel):
     reply: str
+    actions: list[AIActionItem]
     created_at: str

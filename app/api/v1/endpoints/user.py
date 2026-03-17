@@ -9,6 +9,7 @@ from app.core.exceptions import AppError
 from app.core.security import hash_password, validate_password
 from app.db.session import get_db
 from app.models.ai_message import AIMessage
+from app.models.ai_request import AIRequestLog
 from app.models.jobs import ExportJob, ImportJob
 from app.models.note import Note
 from app.models.task import Task
@@ -24,7 +25,14 @@ router = APIRouter(prefix="/user", tags=["User"])
 def _require_settings(db: Session, user_id: str) -> UserSettings:
     settings = db.get(UserSettings, user_id)
     if settings is None:
-        settings = UserSettings(user_id=user_id, language="en", theme="light", smart_planning=True, ai_suggestions=True)
+        settings = UserSettings(
+            user_id=user_id,
+            language="en",
+            theme="light",
+            smart_planning=True,
+            ai_suggestions=True,
+            timezone="Europe/Moscow",
+        )
         db.add(settings)
         db.flush()
     return settings
@@ -93,6 +101,7 @@ def put_settings(
     settings.theme = data["theme"]
     settings.smart_planning = data["smart_planning"]
     settings.ai_suggestions = data["ai_suggestions"]
+    settings.timezone = data["timezone"].strip() or "Europe/Moscow"
     db.commit()
     return serialize_settings(settings)
 
@@ -103,6 +112,7 @@ def delete_me(db: Session = Depends(get_db), current_user: User = Depends(get_cu
     db.execute(delete(Note).where(Note.user_id == user_id))
     db.execute(delete(Task).where(Task.user_id == user_id))
     db.execute(delete(AIMessage).where(AIMessage.user_id == user_id))
+    db.execute(delete(AIRequestLog).where(AIRequestLog.user_id == user_id))
     db.execute(delete(RefreshSession).where(RefreshSession.user_id == user_id))
     db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
     db.execute(delete(ExportJob).where(ExportJob.user_id == user_id))

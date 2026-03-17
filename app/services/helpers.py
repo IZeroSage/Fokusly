@@ -39,6 +39,7 @@ def serialize_settings(settings: UserSettings) -> dict[str, Any]:
         "theme": settings.theme,
         "smart_planning": settings.smart_planning,
         "ai_suggestions": settings.ai_suggestions,
+        "timezone": settings.timezone,
     }
 
 
