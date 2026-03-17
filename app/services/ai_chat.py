@@ -4,7 +4,7 @@ import json
 import threading
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, time as dt_time
+from datetime import date, datetime, time as dt_time, timedelta
 from urllib import error, request
 from zoneinfo import ZoneInfo
 
@@ -46,7 +46,21 @@ def _normalize_operations(raw_operations: object) -> list[dict]:
     for item in raw_operations:
         if not isinstance(item, dict):
             continue
-        op = str(item.get("op") or item.get("type") or item.get("action") or "").strip()
+        raw_op = str(item.get("op") or item.get("type") or item.get("action") or "").strip().lower()
+        op_aliases = {
+            "create": "create_task",
+            "add": "create_task",
+            "new": "create_task",
+            "create_task": "create_task",
+            "update": "update_task",
+            "edit": "update_task",
+            "change": "update_task",
+            "update_task": "update_task",
+            "delete": "delete_task",
+            "remove": "delete_task",
+            "delete_task": "delete_task",
+        }
+        op = op_aliases.get(raw_op, raw_op)
         normalized.append(
             {
                 "op": op,
@@ -255,10 +269,20 @@ def call_deepseek(user_message: str, timezone_name: str, recent_tasks: list[Task
 
 def parse_user_datetime(local_date: str, local_time: str, timezone_name: str) -> datetime:
     try:
-        parsed_date = date.fromisoformat(local_date)
-        hour_str, minute_str = local_time.split(":")
-        parsed_time = dt_time(hour=int(hour_str), minute=int(minute_str))
         zone = ZoneInfo(timezone_name)
+        normalized_date = local_date.strip().lower()
+        if normalized_date in {"today", "сегодня"}:
+            parsed_date = ensure_utc(now_utc()).astimezone(zone).date()
+        elif normalized_date in {"tomorrow", "завтра"}:
+            parsed_date = ensure_utc(now_utc()).astimezone(zone).date() + timedelta(days=1)
+        else:
+            parsed_date = date.fromisoformat(local_date)
+
+        normalized_time = local_time.strip().replace(".", ":")
+        if ":" not in normalized_time:
+            normalized_time = f"{normalized_time}:00"
+        hour_str, minute_str = normalized_time.split(":", 1)
+        parsed_time = dt_time(hour=int(hour_str), minute=int(minute_str))
     except Exception as exc:
         raise AppError(status_code=422, code="VALIDATION_ERROR", message="Invalid date/time in AI command") from exc
     return datetime.combine(parsed_date, parsed_time, tzinfo=zone)

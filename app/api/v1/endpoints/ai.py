@@ -59,16 +59,22 @@ def _apply_ai_operations(
 
     for operation in command.operations:
         if operation.op not in allowed_ops:
-            raise AppError(status_code=422, code="VALIDATION_ERROR", message="Unsupported AI operation")
+            notes.append(f"Пропущена неподдерживаемая операция AI: {operation.op}.")
+            continue
 
         if operation.op == "create_task":
             if not operation.title or not operation.date or not operation.time:
                 notes.append("Не хватает данных для создания задачи: нужны title/date/time.")
                 continue
-            start_at_local = parse_user_datetime(operation.date, operation.time, timezone_name)
+            try:
+                start_at_local = parse_user_datetime(operation.date, operation.time, timezone_name)
+            except AppError:
+                notes.append("Не удалось распознать дату/время для создания задачи.")
+                continue
             duration = operation.duration_minutes if operation.duration_minutes is not None else 60
             if duration < 1 or duration > 24 * 60:
-                raise AppError(status_code=422, code="VALIDATION_ERROR", message="Invalid duration_minutes in AI command")
+                notes.append("Некорректная длительность задачи, операция пропущена.")
+                continue
             task = Task(
                 user_id=user.id,
                 title=operation.title.strip(),
@@ -114,11 +120,8 @@ def _apply_ai_operations(
                 task.mini_description = operation.mini_description.strip()
             if operation.duration_minutes is not None:
                 if operation.duration_minutes < 1 or operation.duration_minutes > 24 * 60:
-                    raise AppError(
-                        status_code=422,
-                        code="VALIDATION_ERROR",
-                        message="Invalid duration_minutes in AI command",
-                    )
+                    notes.append("Некорректная длительность задачи, обновление пропущено.")
+                    continue
                 task.duration_minutes = operation.duration_minutes
             if operation.category is not None:
                 task.category = operation.category.strip()
@@ -126,7 +129,11 @@ def _apply_ai_operations(
                 local_existing = ensure_utc(task.start_at).astimezone(zone)
                 next_date = operation.date or local_existing.date().isoformat()
                 next_time = operation.time or local_existing.strftime("%H:%M")
-                task.start_at = ensure_utc(parse_user_datetime(next_date, next_time, timezone_name))
+                try:
+                    task.start_at = ensure_utc(parse_user_datetime(next_date, next_time, timezone_name))
+                except AppError:
+                    notes.append("Не удалось распознать дату/время для обновления задачи.")
+                    continue
             task.updated_at = now_utc()
             actions.append(AIAction(type="update_task", task_id=task.id))
             notes.append(f'Обновлена задача "{task.title}".')
