@@ -26,20 +26,9 @@ class AppError(Exception):
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_, exc: AppError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
-        )
+        # iOS client expects FastAPI-like `detail` payloads.
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(_, exc: RequestValidationError) -> JSONResponse:
-        return JSONResponse(
-            status_code=422,
-            content={
-                "error": {
-                    "code": "VALIDATION_ERROR",
-                    "message": "Validation failed",
-                    "details": {"fields": exc.errors()},
-                }
-            },
-        )
+        return JSONResponse(status_code=422, content={"detail": exc.errors()})
