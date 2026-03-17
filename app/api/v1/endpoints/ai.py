@@ -58,11 +58,31 @@ def _apply_ai_operations(
     allowed_ops = {"create_task", "update_task", "delete_task"}
 
     for operation in command.operations:
-        if operation.op not in allowed_ops:
-            notes.append(f"Пропущена неподдерживаемая операция AI: {operation.op}.")
-            continue
+        op = (operation.op or "").strip().lower()
+        if op not in allowed_ops:
+            # Fallback: infer operation when model returns malformed op but valid fields.
+            has_update_fields = any(
+                value is not None
+                for value in (
+                    operation.title,
+                    operation.mini_description,
+                    operation.duration_minutes,
+                    operation.date,
+                    operation.time,
+                    operation.category,
+                )
+            )
+            if operation.title and operation.date and operation.time:
+                op = "create_task"
+            elif operation.task_id and has_update_fields:
+                op = "update_task"
+            elif operation.task_id:
+                op = "delete_task"
+            else:
+                notes.append(f"Пропущена неподдерживаемая операция AI: {operation.op}.")
+                continue
 
-        if operation.op == "create_task":
+        if op == "create_task":
             if not operation.title or not operation.date or not operation.time:
                 notes.append("Не хватает данных для создания задачи: нужны title/date/time.")
                 continue
@@ -92,7 +112,7 @@ def _apply_ai_operations(
             notes.append(f'Создана задача "{task.title}".')
             continue
 
-        if operation.op == "update_task":
+        if op == "update_task":
             changed_fields = [
                 operation.title,
                 operation.mini_description,
