@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, Query
@@ -273,39 +273,5 @@ def generate_schedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    mode = payload.mode
-    presets = [
-        ("Morning planning", "Plan day goals", 30, "Planning"),
-        ("Deep work block", "Focus session", 120, "Important"),
-        ("Break and walk", "Recharge", 30, "Health"),
-        ("Review and wrap-up", "Check progress", 45, "Review"),
-    ]
-    if mode == "light":
-        presets = presets[:2]
-    elif mode == "deep_focus":
-        presets = [
-            ("Morning planning", "Set priorities", 20, "Planning"),
-            ("Deep work block 1", "Hard task", 150, "Important"),
-            ("Deep work block 2", "Second hard task", 150, "Important"),
-            ("Evening review", "Lessons learned", 30, "Review"),
-        ]
-
-    base_time = datetime.combine(payload.date, datetime.min.time(), tzinfo=timezone.utc).replace(hour=9, minute=0)
-    created_tasks = 0
-    for idx, (title, mini_description, duration, category) in enumerate(presets):
-        db.add(
-            Task(
-                user_id=current_user.id,
-                title=title,
-                mini_description=mini_description,
-                duration_minutes=duration,
-                start_at=base_time + timedelta(minutes=idx * 150),
-                category=category,
-                source_note_id=None,
-                created_at=now_utc(),
-                updated_at=now_utc(),
-            )
-        )
-        created_tasks += 1
-    db.commit()
-    return {"success": True, "created_tasks": created_tasks, "message": "Schedule generated"}
+    _ = (payload, db, current_user)
+    return {"success": True, "created_tasks": 0, "message": "Не тыкай сюда больше. Пожалуйста =)"}

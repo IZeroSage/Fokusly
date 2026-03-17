@@ -29,6 +29,10 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fokusly}:${POSTGRES_PASSWORD:-fokusly}@db:5432/${POSTGRES_DB:-fokusly}
       FOKUSLY_SECRET_KEY: ${FOKUSLY_SECRET_KEY:-docker-dev-secret-key}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_TIMEOUT_SECONDS: ${DEEPSEEK_TIMEOUT_SECONDS:-30}
     ports:
       - "8000:8000"
     healthcheck:
